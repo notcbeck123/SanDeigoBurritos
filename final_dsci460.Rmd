@@ -1,0 +1,480 @@
+---
+title: "DSCI460 Final Report"
+author: "Colton Beck"
+date: "4/26/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tidymodels)
+library(here)
+library(vip)
+```
+
+
+
+
+# Background
+
+I am planning a trip to San Diego on a quest to find what makes a good San Diego burrito . . .  great! It has been one of my dreams to experience authentic Mexican food and who doesn't love a good burrito right? So before boarding the plane, I download this data set from https://kaggle.com to do research on what makes a good burrito . . . great!
+
+<u> Data set link:</u> https://www.kaggle.com/datasets/srcole/burritos-in-san-diego
+
+<u> Data set description:</u> Mexican cuisine is often the best food option is southern California. And the burrito is the hallmark of delicious taco shop food: tasty, cheap, and filling. Appropriately, an effort was launched to critique burritos across the county and make this data open to the lay burrito consumer. At this time, the data set contains ratings from over 200 burritos from around 50 restaurants.
+
+  * There are 10 core dimensions of the San Diego burrito.
+      
+      * Volume
+      * Tortilla quality
+      * Temperature
+      * Meat quality
+      * Non-meat filling quality
+      * Meat-to-filling ratio
+      * Uniformity
+      * Salsa quality
+      * Flavor synergy
+      * Wrap integrity
+
+All of these measures (except for Volume) are rated on a scale from 0 to 5, 0 being terrible, and 5 being optimal. Other information available for each burrito includes an overall rating, cost, Yelp rating of the restaurant, and more.
+
+Also the data set has an ingredient list . . .
+
+To view more information check out this link here https://srcole.github.io/100burritos/
+
+# Loading Data Set
+
+```{r}
+filename <- here("burritos.csv")
+burrito <-  read_csv(file = filename, col_names = TRUE)
+```
+
+
+# Cleaning 
+
+```{r}
+burrito %>%
+  filter(!is.na(Cost), !is.na(overall), !is.na(Temp), !is.na(Meat), !is.na(`Meat:filling`), !is.na(Fillings), !is.na(Uniformity), !is.na(Salsa...23), !is.na(Synergy), !is.na(Wrap)) %>%
+  mutate(
+    Beef = ifelse(is.na(Beef), 0, 1),
+    Pico = ifelse(is.na(Pico), 0, 1),
+    Guac = ifelse(is.na(Guac), 0, 1),
+    Cheese = ifelse(is.na(Cheese), 0, 1),
+    Fries = ifelse(is.na(Fries), 0, 1),
+    `Sour cream` = ifelse(is.na(`Sour cream`), 0, 1),
+    Pork = ifelse(is.na(Pork), 0, 1),
+    Chicken = ifelse(is.na(Chicken), 0, 1),
+    Shrimp = ifelse(is.na(Shrimp), 0, 1),
+    Fish = ifelse(is.na(Fish), 0, 1),
+    Rice = ifelse(is.na(Rice), 0, 1),
+    Beans = ifelse(is.na(Beans), 0, 1),
+    Lettuce = ifelse(is.na(Lettuce), 0, 1),
+    Tomato = ifelse(is.na(Tomato), 0, 1),
+    `Bell peper` = ifelse(is.na(`Bell peper`), 0, 1),
+    Carrots = ifelse(is.na(Carrots), 0, 1),
+    Cabbage = ifelse(is.na(Cabbage), 0, 1),
+    Sauce = ifelse(is.na(Sauce), 0, 1),
+    SalsaRating = ifelse(is.na(Salsa...23), 0, Salsa...23),
+    Cilantro = ifelse(is.na(Cilantro), 0, 1),
+    Onion = ifelse(is.na(Onion), 0, 1),
+    Taquito = ifelse(is.na(Taquito), 0, 1),
+    Pineapple = ifelse(is.na(Pineapple), 0, 1),
+    Ham = ifelse(is.na(Ham), 0, 1),
+    `Chile relleno` = ifelse(is.na(`Chile relleno`), 0, 1),
+    Nopales = ifelse(is.na(Nopales), 0, 1),
+    Lobster = ifelse(is.na(Lobster), 0, 1),
+    Queso = ifelse(is.na(Queso), 0, 1),
+    Egg = ifelse(is.na(Egg), 0, 1),
+    Mushroom = ifelse(is.na(Mushroom), 0, 1),
+    Bacon = ifelse(is.na(Bacon), 0, 1),
+    Sushi = ifelse(is.na(Sushi), 0, 1),
+    Avocado = ifelse(is.na(Avocado), 0, 1),
+    Corn = ifelse(is.na(Corn), 0, 1),
+    Zucchini = ifelse(is.na(Zucchini), 0, 1),
+    SalsaIngred = ifelse(is.na(Salsa...50), 0, 1)
+    ) %>%
+     select(-Salsa...50, -Salsa...23)-> clean_plate
+```
+
+
+# Exploratory Data Analysis
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = overall)) + geom_histogram(bins = 20, fill =  "pink", color = "red") + labs(title = "Burrito Analysis: Overall Score Distribution") + xlab("Overall Score") + ylab("Count")
+```
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = Cost)) + geom_histogram(bins = 20, fill =  "lightblue", color = "darkblue") + labs(title = "Burrito Analysis: Cost Distribution") + xlab("Cost of Burrito") + ylab("Count")
+```
+
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = Cost, y = overall)) + geom_point(color = "#7c69b3") + geom_smooth() + labs(title = "Burrito Analysis: Rough Overall Score ~ Cost Relationship") + ylab("Overall Score") + xlab("Cost of Burrito")
+```
+
+```{r}
+clean_plate %>%
+  summarise(
+    avgCost = mean(Cost),
+    avgScore = mean(overall)
+  )
+```
+
+
+We have overlapping in a couple different areas here with Overall and Cost. As mentioned above, there is a grouping of scores around the score of 4, there was an average score of 3.59 which is great for the city of San Diego meaning they have good burritos but for modeling purposes this may become an issue. It also looks like if you want to get a good burrito you have to be willing be paying anywhere between \$5.00 and\$10.00 dollars, with an average cost of \$7.05. However because of both of these groupings it will make it hard to disguise the score of a burrito based off of cost alone.
+
+
+Looking at the following variables like Tortilla, Temp, Meat, Fillings that are not meat, Fillings that are meat, Uniformity, Salsa quality, Flavor synergy, Wrap integrity the graphs all look very similar because they are scoring on values of 0.0 to 5.0. Zero meaning "terrible" and 5 being consider "optimal". So lets take a quick peak here, at the reviewer scores . . .
+
+
+When planning my trip to find the best burrito in the City of San Diego, I had to ask myself the question. What makes a good burrito a great burrito? I am no certified burrito expert, I'm just an aspiring Data Scientist. I started my search for that answer with the Meat Filling Field. . . 
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = `Meat:filling`)) + geom_histogram(bins = 10, color = "#385439", fill = "#8ed490" ) + labs(title = "Burrito Analysis: Meat Filling Score Distribution") + xlab("Score for Meat Filling") + ylab("Count")
+```
+
+Taking a look at this histogram we see that there is a good number of restaurants that got reported well on there Meat Filling. That's good to hear I have been carving some carne burritos. I wonder how the filling that is meat impacts the score . . . 
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = `Meat:filling`, y = overall)) + geom_point(color = "#307de3") + geom_smooth(color = "#c25946") + labs(title = "Burrito Analysis: Rough Overall Score ~ Meat:filling Relationship") + ylab("Overall Score") + xlab("Meat Filling Score")
+```
+
+Taking a look at the relationship it seems that Meat filling actually makes a good burrito! There does seem to be a positive relationship but I do not think it is strong enough to be used by itself in a model. 
+
+Since we know that meat filling postive correlates with the overall score of a burrito, I decided that maybe the quality of the meat might also by a part in the score! 
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = Meat)) + geom_histogram(bins = 8, color = "#385439", fill = "#8ed490" ) + labs(title = "Burrito Analysis: Meat Quality Score Distribution") + xlab("Score for Meat Quality") + ylab("Count")
+```
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = Meat, y = overall)) + geom_point(color = "#307de3") + geom_smooth(color = "#c25946") + labs(title = "Burrito Analysis: Rough Overall Score ~ Meat Quality Relationship") + ylab("Overall Score") + xlab("Meat Quality Score")
+```
+
+As suspected Meat has a positive correlation as well! That's good to know . . . Lets look at the temperature of the tortilla, meaning if the tortilla is cooked or not and if the reviewer 
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = Temp)) + geom_histogram(bins = 7, color = "#385439", fill = "#8ed490" ) + labs(title = "Burrito Analysis: Temperature Score Distribution") + xlab("Score for Temperature") + ylab("Count")
+```
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = Temp, y = overall)) + geom_point(color = "#307de3") + geom_smooth(color = "#c25946") + labs(title = "Burrito Analysis: Rough Overall Score ~ Temperature Score Relationship") + ylab("Overall Score") + xlab("Temperature Score")
+```
+
+Me personally I like my tortilla pressed when I'm ordering a burrito. It's looks like San Diego though is indifferent about this though. I do not know though if temp is a good predictor, but we do see a slight positive correlation here.
+
+
+Lastly I'm going to take a look at Uniformity just because I do not exactly what this variable is . . . but they said that it was vital to scoring
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = Uniformity)) + geom_histogram(bins = 7, color = "#385439", fill = "#8ed490" ) + labs(title = "Burrito Analysis: Uniformity Score Distribution") + xlab("Score for Uniformity ") + ylab("Count")
+```
+
+
+
+```{r}
+clean_plate %>%
+  ggplot(aes(x = Uniformity, y = overall)) + geom_point(color = "#307de3") + geom_smooth(color = "#c25946") + labs(title = "Burrito Analysis: Rough Overall Score ~ Uniformity Score Relationship") + ylab("Overall Score") + xlab("Uniformity Score")
+```
+
+Looks like a neat / uniform burrito positive correlates the overall score. 
+
+# Model Building
+
+```{r}
+set.seed(123)
+whats_your_order <- initial_split(clean_plate)
+burrito_train <- training(whats_your_order)
+leftovers <- testing(whats_your_order)
+```
+
+```{r}
+burrito_reg <- linear_reg(mode = "regression") %>%
+  set_engine("lm")
+
+review_rec <- recipe(overall ~ Tortilla + Temp + Meat + Fillings + `Meat:filling` + Uniformity + SalsaRating + Synergy + Wrap, data = burrito_train)
+
+hopefully_a_good_burrito <- workflow() %>%
+  add_model(burrito_reg) %>%
+  add_recipe(review_rec)
+
+hopefully_a_good_burrito %>%
+  fit(burrito_train)
+  
+```
+
+```{r}
+summary(hopefully_a_good_burrito %>% fit(burrito_train) %>% extract_fit_engine())
+```
+
+This shows us a linear regression model of rating variables
+
+What about ingredient list?
+
+Model a linear regression for ingredients
+
+
+
+```{r}
+burrito_reg <- linear_reg(mode = "regression") %>%
+  set_engine("lm")
+
+ingred_rec <- recipe(overall ~ Beef + Pico + Guac + Cheese + Fries + `Sour cream` + Pork + Chicken + Shrimp + Fish + Rice +
+                          Beans + Lettuce + Tomato + `Bell peper` + Carrots + Cabbage + Sauce + SalsaIngred + Cilantro + 
+                          Onion + Taquito + Pineapple + Ham  + `Chile relleno` + Nopales + Lobster + Queso + Egg + Mushroom +
+                          Bacon + Sushi + Avocado + Corn + Zucchini,  data = burrito_train)
+
+hopefully_a_good_burrito <- workflow() %>%
+  add_model(burrito_reg) %>%
+  add_recipe(ingred_rec)
+
+hopefully_a_good_burrito %>%
+  fit(burrito_train)
+```
+
+```{r}
+summary(hopefully_a_good_burrito %>% fit(burrito_train) %>% extract_fit_engine())
+```
+
+Looking at the model above it seems that beef, pico, pork, and chicken, and beans are statistically significant predictor variables.
+
+
+Lets combine those predictors with our model for the reviews
+```{r}
+burrito_reg <- linear_reg(mode = "regression") %>%
+  set_engine("lm")
+
+review_rec <- recipe(overall ~ Tortilla + Temp + Meat + Fillings + `Meat:filling` + Uniformity + SalsaRating + Synergy + Wrap, data = burrito_train)
+
+combinded_rec <- recipe(overall ~ Tortilla + Temp + Meat + Fillings + `Meat:filling` + Uniformity + SalsaRating + Synergy + Wrap + Beef + Pico + Pork + Chicken + Beans, data = burrito_train)
+
+hopefully_a_good_burrito <- workflow() %>%
+  add_model(burrito_reg) %>%
+  add_recipe(review_rec)
+
+hopefully_a_better_burrito <- workflow() %>%
+  add_model(burrito_reg) %>%
+  add_recipe(combinded_rec)
+
+hopefully_a_better_burrito %>%
+  fit(burrito_train)
+```
+
+# Anova Testing
+
+I wanted to decided which linear regression model to use against my test set. I decided to do an anova test on the two review model and the combined model to see if including our ingredients actually produced a better fitting model.
+
+```{r}
+anova(hopefully_a_good_burrito %>% fit(burrito_train) %>% extract_fit_engine(), hopefully_a_better_burrito %>% fit(burrito_train) %>% extract_fit_engine())
+```
+
+Looking at the test, it does show that the ingredient fields are significant and should be included in the model.
+
+```{r}
+summary(hopefully_a_better_burrito %>% fit(burrito_train) %>% extract_fit_engine())
+```
+Adding those predictors did raise our R-squared value lets compare these two models and see if they are actually different
+
+# Random Forest
+
+```{r}
+recipe_rand <- rand_forest(mode = "regression") %>%
+     set_engine("ranger", importance = "impurity")
+
+rand_recipe_wf <- workflow() %>%
+     add_model(recipe_rand) %>%
+     add_recipe(review_rec)
+
+rand_ingred_wf <- workflow() %>%
+     add_model(recipe_rand) %>%
+     add_recipe(ingred_rec)
+
+rand_combination_wf <- workflow() %>%
+     add_model(recipe_rand) %>%
+     add_recipe(combinded_rec)
+
+```
+
+
+## Recipe Random Forest Model
+
+```{r}
+rand_recipe_wf %>%
+     fit(burrito_train)
+```
+
+```{r}
+fit(rand_recipe_wf, burrito_train) %>% extract_fit_engine() %>% vip()
+```
+Looking at the random forest we can see the importance of each predictor variable. It weird to find that Synergy seems to be the most important predictor variable for overall score of a burrito. Flavor synergy which is like the flavor combination rating.
+
+## Ingredient Random Forest Model
+
+```{r}
+rand_ingred_wf %>%
+     fit(burrito_train)
+```
+
+
+```{r}
+ingred_tree <- decision_tree(mode = "regression") %>%
+     set_engine("rpart")
+       
+
+plot <- ingred_tree %>% fit(overall ~ Beef + Pico + Guac + Cheese + Fries + `Sour cream` + Pork + Chicken + Shrimp + Fish + Rice +
+                          Beans + Lettuce + Tomato + `Bell peper` + Carrots + Cabbage + Sauce + SalsaIngred + Cilantro + 
+                          Onion + Taquito + Pineapple + Ham  + `Chile relleno` + Nopales + Lobster + Queso + Egg + Mushroom +
+                          Bacon + Sushi + Avocado + Corn + Zucchini,  data = burrito_train)
+
+rpart.plot::rpart.plot(extract_fit_engine(plot), roundint = FALSE)
+```
+
+
+```{r}
+fit(rand_ingred_wf, burrito_train) %>% extract_fit_engine() %>% vip()
+```
+
+
+
+
+## Combined Random Forest Model
+```{r}
+rand_combination_wf %>%
+     fit(burrito_train)
+```
+
+
+```{r}
+summary(rand_combination_wf %>% fit(burrito_train) %>% extract_fit_engine())
+```
+
+Im going to add Guac and Cheese to our combined model
+
+```{r}
+combined_tree <- decision_tree(mode = "regression") %>%
+     set_engine("rpart")
+
+
+combinded_rec <- recipe(overall ~ Tortilla + Temp + Meat + Fillings + `Meat:filling` + Uniformity + SalsaRating + Synergy + Wrap + Beef + Pico + Pork + Chicken + Beans + Guac + Cheese, data = burrito_train)
+
+rand_combination_tree <- workflow() %>%
+     add_model(combined_tree) %>%
+     add_recipe(combinded_rec)
+
+rpart.plot::rpart.plot(extract_fit_engine(rand_combination_tree %>% fit(burrito_train)), roundint = FALSE)
+```
+
+# Testing Models
+
+I'm going to test both the linear regression combined and the random forest regression models with cross-validation sets and tuning parameters
+
+```{r}
+set.seed(123)
+too_many_burritos <- mc_cv(data = burrito_train, times = 10)
+```
+
+## Linear Regression Resampling
+
+```{r}
+
+combinded_rec <- recipe(overall ~ Tortilla + Temp + Meat + Fillings + `Meat:filling` + Uniformity + Synergy + 
+                             SalsaRating + Wrap + Beef + Pico + Pork + Chicken + Beans, data = burrito_train)
+
+hopefully_a_better_burrito <- workflow() %>%
+  add_model(burrito_reg) %>%
+  add_recipe(combinded_rec)
+
+fit_resamples(
+     hopefully_a_better_burrito,
+     resamples = too_many_burritos
+) %>% 
+     collect_metrics()
+```
+
+Looking at the combinded linear regression model it performed producing a low rmse meaning that the model is fitting the data well. We also have an r-squared value of .803. Both values show the accuracy of the burrito's combined model. I am happy with these results for this model.
+
+```{r}
+combination_rand_tune <- rand_forest(mode = "regression", mtry = tune(), min_n = tune()) %>%
+  set_engine("ranger", importance = "impurity")
+
+
+rand_combination_tune_wf <- workflow() %>%
+     add_model(combination_rand_tune) %>%
+     add_recipe(combinded_rec)
+
+tune2_grid <- grid_max_entropy(list(min_n(), 
+                      finalize(mtry(), burrito_train)), size = 10)
+
+tune_grid(
+  rand_combination_tune_wf,
+  grid = tune2_grid,
+  resamples = too_many_burritos
+) -> tuned_results
+
+
+```
+
+```{r}
+tuned_results %>%
+     autoplot()
+```
+
+
+
+```{r}
+show_best(tuned_results, metric = "rmse")
+```
+
+
+Looking at the results we see that mtry and min_n values of 4 produces the best model in our testing set. So lets do some final fitting with the test set. Which is great timing because my plane is about to land and I am hungry!
+
+
+# Testing
+
+I know you said to pick one model but I was just way too curious and I wanted to see what model did better on the testing set.
+
+## Linear Regression
+
+```{r}
+hopefully_a_better_burrito %>%
+     last_fit(
+          whats_your_order
+     ) %>% collect_metrics()
+```
+
+
+## Random Forest 
+```{r}
+finalize_workflow(
+     rand_combination_tune_wf,
+     tibble(min_n = c(4), mtry = c(4))
+) %>%
+     last_fit(
+          whats_your_order
+     ) %>% collect_metrics()
+```
+
+## Results
+
+Looking at the results both models would be entirely suitable to predict the overall score of a burrito based off the predictors. However, I would probably choose to use our linear regression model since it produced a lower rmse value and a higher rsq value, but also because a linear regression model has the easier to interrupt.
+
+
+```{r}
+summary(hopefully_a_better_burrito %>% fit(leftovers) %>% extract_fit_engine())
+```
+
+
+# Conclusion
+
+After looking at the data, it seems that all the rating scores, plus if the burrito included beef, pico, pork, chicken, and beans. These values are not statistically significant in the final model fitted. However, an anova test was done to test these values and these values do allow the model to fit better. So according to these overall scores of San Diego burrito's a great burrito should contain some type of meat and that meat should be taste well and there should be enough of it. The temperature of the burrito, other fillings, and flavor synergy are also all important into predicting the overall score of a burrito. So in my search for a great burrito in San Diego, I will keep these values in mind when I travel through the city looking for something tasty to eat! 

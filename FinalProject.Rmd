@@ -1,0 +1,28 @@
+---
+title: "DSCI 460 Final Project"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Final Project
+
+For your final project, you will choose a data set and model some variable in that data set.  (You can model either a qualitative or a quantitative variable.)
+
+You should include the following in a well-written final report, constructed as a separate RMarkdown document.  Be sure to include the compiled HTML in your repository when you make your final push to GitLab:
+
+*  Information about the data set, including where it was obtained and what you are trying to model.
+*  An exploratory data analysis of the data set.
+*  Any appropriate preprocessing needed for your predictor variables.
+*  A fitting and analysis of a simple model for your outcome variable (like linear or polynomial regression, k-nearest neighbors, etc.).
+*  A fitting and analysis of a more advanced model for your outcome variables (like a random forest, boosted trees, support vector machine, etc.).
+*  A final choice of model, and appropriate error estimates.
+*  Appropriate use of training/testing sets, and cross-validation sets.  Relevant hyperparameters should be appropriately tuned.
+
+Note that you should produce a readable final report that covers all of the above.  It should make sense as a document to anyone who understands the basics of statistical analysis and a little machine learning. Don't copy these bullet points and try to respond to them individually. 
+
+Be sure that you also commit your data set (probably a CSV file) to your repository, unless you are reading your data directly from the Web via an appropriate `read_csv` command or similar. (In other words, be sure *everything* necessary to build your project is included in the repository.)
+
+Final results should be pushed to the repository by Wednesday, 2022-05-04.
